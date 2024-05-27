@@ -1,11 +1,9 @@
-import datetime
-
 from database.models import Worker, Event, Notification, Material
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
+from sqlalchemy import select, update, and_, func
 from sqlalchemy.orm import joinedload
 
-from datetime import datetime
+import datetime
 
 
 async def get_admin_tg_ids(session: AsyncSession) -> list[int]:
@@ -46,11 +44,17 @@ async def add_tg_id_at_first_time(session: AsyncSession, email: str, password: s
 
 
 async def get_nearby_events(session: AsyncSession):
+    now = datetime.datetime.now()
     events = await session.execute(
         select(Material, Event, Worker)
         .join(Material.worker).join(Material.event)
-        .options(joinedload(Material.worker), joinedload(Material.event)).
-        where(Event.dateOfEvent > datetime.now())
+        .options(joinedload(Material.worker), joinedload(Material.event))
+        .where(
+            and_(
+                func.date(Event.dateOfEvent) >= now.date(),
+                func.time(Event.timeOfEvent) >= now.time()
+            )
+        )
     )
     return events.scalars().all()
 
@@ -60,7 +64,7 @@ async def get_past_events(session: AsyncSession):
         select(Material, Event, Worker)
         .join(Material.worker).join(Material.event)
         .options(joinedload(Material.worker), joinedload(Material.event))
-        .where(Event.dateOfEvent < datetime.now())
+        .where(Event.dateOfEvent < datetime.datetime.now())
     )
     return events.scalars().all()
 
@@ -128,4 +132,3 @@ async def get_material(session: AsyncSession, lecture_name):
 async def get_event_id(session: AsyncSession, link):
     event = await session.execute(select(Event).where(Event.eventLink == link))
     return event.scalar().id
-
