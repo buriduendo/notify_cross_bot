@@ -129,7 +129,7 @@ async def add_material_lecture_name(message: types.Message, state: FSMContext):
 @admin_router.message(AddMaterial.workerId)
 async def add_user_last_name(message: types.Message, state: FSMContext, session: AsyncSession):
     email = message.text
-    if event_type == "отмена":
+    if email == "отмена":
         await state.clear()
     else:
         worker = await get_worker_form_email(session, email)
@@ -275,4 +275,3 @@ async def edit_user(message: types.Message):
 @admin_router.message(F.text == "Изменить пользователя" or F.text == "Изменить событие")
 async def edit_user(message: types.Message):
     await message.answer("В процессе разработки!")
-
