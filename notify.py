@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database.requests import get_user_tg_ids, get_link_on_reg_ct, get_link_on_reg_lec
 
 
-
 bot = Bot(token=TOKEN)
 
 
@@ -16,7 +15,7 @@ async def send_reminder_7_days(users):
         await bot.send_message(chat_id=user, text="Привет, напоиманю, что через 7 тебя ждет мероприятия от КТСГ!")
 
 
-async def send_reminder_3_days(event_date, users):
+async def send_reminder_3_days(users):
     # Логика для отправки напоминания за 3 дня до события
     for user in users:
         await bot.send_message(chat_id=user, text="Привет, уже через 3 дня мы встретимся на мероприятии от КТСГ!")
@@ -25,14 +24,14 @@ async def send_reminder_3_days(event_date, users):
 async def send_reminder_5_min(users):
     #Логика для отправки напоминания за 5 минут до события
     for user in users:
-        await bot.send_message(chat_id=user, text="Привет, начало через 5 минут, подключайся!!")
+        await bot.send_message(chat_id=user, text="Привет, начало через 5 минут!")
 
 
 async def send_feedback_link(users):
     #Логика для отправки ссылки на обратную связь
     for user in users:
-        await bot.send_message(chat_id=user, text="Привет, нам важно твое мнение о пройденом мероприятии, "
-                                                  "оставить обратную связь можешь ниже по ссыле!\n"
+        await bot.send_message(chat_id=user, text="Привет, нам важно твое мнение о мероприятии, "
+                                                  "оставить обратную связь после мероприятия  ссылке ниже:!\n"
                                                   "https://docs.google.com/forms/d/e/1FAIpQLSeaY3T"
                                                   "b1gX97BJ71CnRL4Ra_8QTNgRx8XG16SB2IR22pkz6ow/viewform?usp=sf_link ")
 
@@ -50,27 +49,26 @@ async def start_scheduler(date, time, event_id, session: AsyncSession):
     # Напоминание за 3 дня до события
     scheduler.add_job(send_reminder_3_days, 'date', run_date=event_date - timedelta(days=3), args=[users])
 
-    # Напоминание за 5 минут до события
-    scheduler.add_job(send_reminder_5_min, 'date', run_date=event_date - timedelta(minutes=5), args=[users])
-
     # Отправка ссылки на обратную связь после события
-    scheduler.add_job(send_feedback_link, 'date', run_date=event_date + timedelta(hours=3), args=[users])
+    scheduler.add_job(send_feedback_link, 'date', run_date=event_date, args=[users])
+
+    scheduler.add_job(send_reminder_5_min, 'date', run_date=event_date - timedelta(minutes=5), args=[users])
 
     scheduler.start()
 
 
 async def start_notify_forms(session: AsyncSession):
-    scheduler = AsyncIOScheduler()
+    scheduler_form = AsyncIOScheduler()
 
     users = await get_user_tg_ids(session)
 
-    scheduler.add_job(send_link_on_form_cross_talk, 'interval', weeks=12, next_run_time=datetime.now(),
-                      args=[session, users])
+    scheduler_form.add_job(send_link_on_form_cross_talk, 'interval', weeks=12, next_run_time=datetime.now() + timedelta(minutes=10), args=[session, users])
 
-    scheduler.add_job(send_link_on_form_lecture,
-                      'interval', weeks=4, next_run_time=datetime.now() + timedelta(seconds=1), args=[session, users])
+    scheduler_form.add_job(
+        send_link_on_form_lecture,'interval',
+        weeks=4, next_run_time=datetime.now() + timedelta(minutes=11), args=[session, users])
 
-    scheduler.start()
+    scheduler_form.start()
 
 
 async def send_link_on_form_cross_talk(session: AsyncSession, users):
